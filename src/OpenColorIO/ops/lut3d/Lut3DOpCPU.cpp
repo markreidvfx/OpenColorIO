@@ -391,7 +391,7 @@ void Lut3DTetrahedralRenderer::apply(const void * inImg, void * outImg, long num
     __m128i dim = _mm_set1_epi32(m_dim);
 
     __m128 v[4];
-    OCIO_ALIGN(float cmpDelta[4]);
+    OCIO_ALIGN(int cmpDelta[4]);
 
     for (long i = 0; i < numPixels; ++i)
     {
@@ -442,7 +442,7 @@ void Lut3DTetrahedralRenderer::apply(const void * inImg, void * outImg, long num
         // we are in and therefore which four vertices of the cube we need.
 
         // cmpDelta = { delta[0] >= delta[1], delta[1] >= delta[2], delta[2] >= delta[0], - }
-        _mm_store_ps(cmpDelta,
+        _mm_store_ps((float*)cmpDelta,
                      _mm_cmpge_ps(delta,
                                   _mm_shuffle_ps(delta,
                                                  delta,
