@@ -84,6 +84,7 @@ set(SOURCES
     fileformats/xmlutils/XMLReaderHelper.cpp
     fileformats/xmlutils/XMLWriterUtils.cpp
     BakingUtils.cpp
+    CPUInfo.cpp
     GPUProcessor.cpp
     GpuShaderDesc.cpp
     GpuShaderClassWrapper.cpp
@@ -103,6 +104,9 @@ set(SOURCES
     ops/gradingtone/GradingToneOpGPU.cpp
     ops/log/LogOpGPU.cpp
     ops/lut3d/Lut3DOpGPU.cpp
+    ops/lut3d/Lut3DOpCPU_SSE2.cpp
+    ops/lut3d/Lut3DOpCPU_AVX.cpp
+    ops/lut3d/Lut3DOpCPU_AVX2.cpp
     ops/matrix/MatrixOpGPU.cpp
     ops/OpTools.cpp
     ops/range/RangeOpGPU.cpp
@@ -264,5 +268,11 @@ endfunction(prepend)
 prepend(SOURCES "${CMAKE_SOURCE_DIR}/src/OpenColorIO/" ${SOURCES})
 
 list(APPEND SOURCES ${TESTS})
+
+if(OCIO_ARCH_X86)
+    set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut3d/Lut3DOpCPU_SSE2.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_SSE2_ARGS})
+    set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut3d/Lut3DOpCPU_AVX.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX_ARGS})
+    set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut3d/Lut3DOpCPU_AVX2.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
+endif()
 
 add_ocio_test(cpu "${SOURCES}" TRUE)

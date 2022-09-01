@@ -1,0 +1,12 @@
+#cmakedefine OCIO_ARCH_X86
+
+#cmakedefine01 OCIO_USE_SSE2
+#cmakedefine01 OCIO_USE_SSE3
+#cmakedefine01 OCIO_USE_SSSE3
+#cmakedefine01 OCIO_USE_SSE4
+#cmakedefine01 OCIO_USE_SSE42
+#cmakedefine01 OCIO_USE_AVX
+#cmakedefine01 OCIO_USE_AVX2
+#cmakedefine01 OCIO_USE_AVX512
+
+#cmakedefine01 OCIO_USE_NEON
