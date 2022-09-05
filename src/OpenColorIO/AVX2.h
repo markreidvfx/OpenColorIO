@@ -40,9 +40,8 @@ inline __m256 avx2_movehl_ps(__m256 a, __m256 b)
     return _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(b), _mm256_castps_pd(a)));
 }
 
-inline __m256 avx2_scale_clamp_round(__m256 value, const __m256& maxValue)
+inline __m256 avx2_clamp(__m256 value, const __m256& maxValue)
 {
-    value = _mm256_mul_ps(value, maxValue);
     value = _mm256_max_ps(value, _mm256_setzero_ps());
     return _mm256_min_ps(value, maxValue);
 }
@@ -78,7 +77,7 @@ inline void avx2RGBATranspose_4x4_4x4(__m256 row0, __m256 row1, __m256 row2, __m
 template <BitDepth BD>
 inline void avx2RGBALoadU16(const typename BitDepthInfo<BD>::Type *in, __m256& r, __m256& g, __m256& b, __m256& a)
 {
-    const __m256 scale = _mm256_set1_ps(1.0f / (float)BitDepthInfo<BD>::maxValue);
+    // const __m256 scale = _mm256_set1_ps(1.0f / (float)BitDepthInfo<BD>::maxValue);
     __m256i rgba_00_03 = _mm256_loadu_si256((const __m256i*)(in +  0));
     __m256i rgba_04_07 = _mm256_loadu_si256((const __m256i*)(in + 16));
 
@@ -88,11 +87,6 @@ inline void avx2RGBALoadU16(const typename BitDepthInfo<BD>::Type *in, __m256& r
     __m256 rgba3 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm256_extractf128_si256(rgba_04_07, 1)));
 
     avx2RGBATranspose_4x4_4x4(rgba0, rgba1, rgba2, rgba3, r, g, b, a);
-
-    r = _mm256_mul_ps(r, scale);
-    g = _mm256_mul_ps(g, scale);
-    b = _mm256_mul_ps(b, scale);
-    a = _mm256_mul_ps(a, scale);
 }
 
 template <BitDepth BD>
@@ -101,8 +95,6 @@ inline void avx2RGBALoad(const typename BitDepthInfo<BD>::Type *in, __m256& r, _
 template <>
 inline void avx2RGBALoad<BIT_DEPTH_UINT8>(const uint8_t *in, __m256& r, __m256& g, __m256& b, __m256& a)
 {
-    const __m256 scale = _mm256_set1_ps(1.0f/255.0f);
-
     __m256i rgba_00_07 = _mm256_loadu_si256((const __m256i*)in);
 
     __m128i rgba_00_03 =_mm256_castsi256_si128(rgba_00_07);
@@ -119,11 +111,6 @@ inline void avx2RGBALoad<BIT_DEPTH_UINT8>(const uint8_t *in, __m256& r, __m256& 
     __m256 rgba3 = _mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_shuffle_epi32(rgba_04_07, _MM_SHUFFLE(3, 2, 3, 2))));
 
     avx2RGBATranspose_4x4_4x4(rgba0, rgba1, rgba2, rgba3, r, g, b, a);
-
-    r = _mm256_mul_ps(r, scale);
-    g = _mm256_mul_ps(g, scale);
-    b = _mm256_mul_ps(b, scale);
-    a = _mm256_mul_ps(a, scale);
 }
 
 template <>
@@ -180,10 +167,10 @@ inline void avx2RGBAStoreU16(typename BitDepthInfo<BD>::Type *out, __m256& r, __
 
     avx2RGBATranspose_4x4_4x4(r, g, b, a, rgba0, rgba1, rgba2, rgba3);
 
-    rgba0 = avx2_scale_clamp_round(rgba0, maxValue);
-    rgba1 = avx2_scale_clamp_round(rgba1, maxValue);
-    rgba2 = avx2_scale_clamp_round(rgba2, maxValue);
-    rgba3 = avx2_scale_clamp_round(rgba3, maxValue);
+    rgba0 = avx2_clamp(rgba0, maxValue);
+    rgba1 = avx2_clamp(rgba1, maxValue);
+    rgba2 = avx2_clamp(rgba2, maxValue);
+    rgba3 = avx2_clamp(rgba3, maxValue);
 
     // NOTE note using cvtps which will round based on MXCSR register defaults to _MM_ROUND_NEAREST
     __m256i rgba01 = _mm256_cvtps_epi32(rgba0);
@@ -224,10 +211,10 @@ inline void avx2RGBAStore<BIT_DEPTH_UINT8>(uint8_t *out, __m256& r, __m256& g, _
 
     avx2RGBATranspose_4x4_4x4(r, g, b, a, rgba0, rgba1, rgba2, rgba3);
 
-    rgba0 = avx2_scale_clamp_round(rgba0, maxValue);
-    rgba1 = avx2_scale_clamp_round(rgba1, maxValue);
-    rgba2 = avx2_scale_clamp_round(rgba2, maxValue);
-    rgba3 = avx2_scale_clamp_round(rgba3, maxValue);
+    rgba0 = avx2_clamp(rgba0, maxValue);
+    rgba1 = avx2_clamp(rgba1, maxValue);
+    rgba2 = avx2_clamp(rgba2, maxValue);
+    rgba3 = avx2_clamp(rgba3, maxValue);
 
     // NOTE note using cvtps which will round based on MXCSR register defaults to _MM_ROUND_NEAREST
     __m256i rgba01 = _mm256_cvtps_epi32(rgba0);

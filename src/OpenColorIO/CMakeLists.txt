@@ -114,6 +114,7 @@ set(SOURCES
     ops/log/LogUtils.cpp
     ops/lut1d/Lut1DOp.cpp
     ops/lut1d/Lut1DOpCPU.cpp
+    ops/lut1d/Lut1DOpCPU_AVX2.cpp
     ops/lut1d/Lut1DOpData.cpp
     ops/lut1d/Lut1DOpGPU.cpp
     ops/lut3d/Lut3DOp.cpp
@@ -193,6 +194,7 @@ if(OCIO_ARCH_X86)
     set_property(SOURCE ops/lut3d/Lut3DOpCPU_SSE2.cpp APPEND PROPERTY COMPILE_OPTIONS ${OCIO_SSE2_ARGS})
     set_property(SOURCE ops/lut3d/Lut3DOpCPU_AVX.cpp APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX_ARGS})
     set_property(SOURCE ops/lut3d/Lut3DOpCPU_AVX2.cpp APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
+    set_property(SOURCE ops/lut1d/Lut1DOpCPU_AVX2.cpp APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
 endif()
 
 configure_file(CPUInfoConfig.h.in CPUInfoConfig.h)
@@ -245,7 +247,7 @@ foreach(C ${CONFIGS_PATHS})
 
     # Append 0x00 to null-terminated the string.
     string(APPEND FORMATTED_HEX ",0x00")
-    
+
     # Set the dynamically named variable "${CONFIG_NAME}" to the config in HEX.
     set(${CONFIG_NAME} ${FORMATTED_HEX})
 endforeach()

@@ -15,6 +15,9 @@
 #include "Platform.h"
 #include "SSE.h"
 
+#include "CPUInfo.h"
+#include "Lut1DOpCPU_AVX2.h"
+
 
 #define L_ADJUST(val) \
     (T)((isOutInteger) ? Clamp((val)+0.5f, outMin,  outMax) : SanitizeFloat(val))
@@ -97,6 +100,8 @@ protected:
     float m_step = 1.0f;
     float m_dimMinusOne = 0.0f;
 
+    Lut1DOpCPUApplyFunc *m_applyLutFunc = nullptr;
+
 private:
     BaseLut1DRenderer() = delete;
     BaseLut1DRenderer(const BaseLut1DRenderer &) = delete;
@@ -135,7 +140,7 @@ class Lut1DRenderer : public BaseLut1DRenderer<inBD, outBD>
 public:
     Lut1DRenderer() = delete;
 
-    explicit Lut1DRenderer(ConstLut1DOpDataRcPtr & lut) 
+    explicit Lut1DRenderer(ConstLut1DOpDataRcPtr & lut)
         : BaseLut1DRenderer<inBD, outBD>(lut) {}
 
     Lut1DRenderer(ConstLut1DOpDataRcPtr & lut, BitDepth outBitDepth)
@@ -248,7 +253,7 @@ class InvLut1DRendererHueAdjust : public InvLut1DRenderer<inBD, outBD>
 {
 public:
     explicit InvLut1DRendererHueAdjust(ConstLut1DOpDataRcPtr & lut);
- 
+
     void apply(const void * inImg, void * outImg, long numPixels) const override;
 };
 
@@ -270,6 +275,18 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut)
 {
     static_assert(inBD!=BIT_DEPTH_UINT32 && inBD!=BIT_DEPTH_UINT14, "Unsupported bit depth.");
     update(lut);
+
+    #if OCIO_USE_AVX2
+    if (CPUInfo::instance().hasAVX2())
+    {
+
+        m_applyLutFunc = AVX2GetConvertFunc(inBD, outBD);
+
+        // if(m_applyLutFunc) {
+        //     std::cerr<< "found avx2 func\n";
+        // }
+    }
+    #endif
 }
 
 template<BitDepth inBD, BitDepth outBD>
@@ -280,6 +297,18 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut, B
 {
     static_assert(inBD!=BIT_DEPTH_UINT32 && inBD!=BIT_DEPTH_UINT14, "Unsupported bit depth.");
     update(lut);
+
+    #if OCIO_USE_AVX2
+    if (CPUInfo::instance().hasAVX2())
+    {
+
+        m_applyLutFunc = AVX2GetConvertFunc(inBD, outBitDepth);
+
+        // if(m_applyLutFunc) {
+        //     std::cerr<< "found avx2 func\n";
+        // }
+    }
+    #endif
 }
 
 template<BitDepth inBD, BitDepth outBD>
@@ -527,7 +556,7 @@ IndexPair IndexPair::GetEdgeFloatValues(float fIn)
     const float floatTemp = (float) halfVal;
 
     // Strict comparison required otherwise negative fractions will occur.
-    if (fabs(floatTemp) > fabs(fIn)) 
+    if (fabs(floatTemp) > fabs(fIn))
     {
         idxPair.valB = halfVal.bits();
         idxPair.valA = idxPair.valB;
@@ -567,6 +596,7 @@ void Lut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, long n
 {
     typedef typename BitDepthInfo<inBD>::Type InType;
     typedef typename BitDepthInfo<outBD>::Type OutType;
+    // std::cerr << "Lut1DRenderer\n";
 
     const InType * in = (InType *)inImg;
     OutType * out = (OutType *)outImg;
@@ -577,6 +607,7 @@ void Lut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, long n
     //     (Should be no runtime cost.)
     if (inBD != BIT_DEPTH_F32)
     {
+        // std::cerr << "Lut1DRenderer no interpolate\n";
         const OutType * lutR = (const OutType *)this->m_tmpLutR;
         const OutType * lutG = (const OutType *)this->m_tmpLutG;
         const OutType * lutB = (const OutType *)this->m_tmpLutB;
@@ -591,6 +622,13 @@ void Lut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, long n
             in  += 4;
             out += 4;
         }
+    }
+    else if (this->m_applyLutFunc && numPixels > 1)
+    {
+        const float * lutR = (const float *)this->m_tmpLutR;
+        const float * lutG = (const float *)this->m_tmpLutG;
+        const float * lutB = (const float *)this->m_tmpLutB;
+        this->m_applyLutFunc(lutR, lutG, lutB, this->m_dim, inImg, outImg, numPixels);
     }
     else  // Need to interpolate rather than simply lookup.
     {
@@ -669,15 +707,15 @@ void Lut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, long n
             // 0*Infinity (which is NaN).
 
             out[0] = Converter<outBD>::CastValue(
-                        lerpf(lutR[(unsigned int)highIdx[0]], 
-                              lutR[(unsigned int)lowIdx[0]], 
+                        lerpf(lutR[(unsigned int)highIdx[0]],
+                              lutR[(unsigned int)lowIdx[0]],
                               delta[0]));
             out[1] = Converter<outBD>::CastValue(
                         lerpf(lutG[(unsigned int)highIdx[1]],
                               lutG[(unsigned int)lowIdx[1]],
                               delta[1]));
             out[2] = Converter<outBD>::CastValue(
-                        lerpf(lutB[(unsigned int)highIdx[2]], 
+                        lerpf(lutB[(unsigned int)highIdx[2]],
                               lutB[(unsigned int)lowIdx[2]],
                               delta[2]));
             out[3] = Converter<outBD>::CastValue(in[3] * this->m_alphaScaling);
@@ -742,8 +780,8 @@ void Lut1DRendererHalfCodeHueAdjust<inBD, outBD>::apply(const void * inImg, void
             GamutMapUtils::Order3( RGB, min, mid, max);
 
             const float orig_chroma = RGB[max] - RGB[min];
-            const float hue_factor 
-                = orig_chroma == 0.f  ?  0.f 
+            const float hue_factor
+                = orig_chroma == 0.f  ?  0.f
                                       :  (RGB[mid] - RGB[min]) / orig_chroma;
 
             float RGB2[] = {
@@ -791,10 +829,10 @@ void Lut1DRendererHalfCodeHueAdjust<inBD, outBD>::apply(const void * inImg, void
                       1.0f-blueInterVals.fraction)  };
 
             // TODO: ease SSE implementation (may be applied to all chans):
-            // RGB2[channel] = (RGB[channel] - RGB(min)) 
+            // RGB2[channel] = (RGB[channel] - RGB(min))
             //                 * new_chroma / orig_chroma + RGB2[min].
             const float orig_chroma = RGB[max] - RGB[min];
-            const float hue_factor 
+            const float hue_factor
                 = orig_chroma == 0.f  ? 0.f
                                       : (RGB[mid] - RGB[min]) / orig_chroma;
 
@@ -870,7 +908,7 @@ void Lut1DRendererHueAdjust<inBD, outBD>::apply(const void * inImg, void * outIm
             GamutMapUtils::Order3( RGB, min, mid, max);
 
             const float orig_chroma = RGB[max] - RGB[min];
-            const float hue_factor 
+            const float hue_factor
                 = orig_chroma == 0.f ? 0.f
                                      : (RGB[mid] - RGB[min]) / orig_chroma;
 
@@ -976,7 +1014,7 @@ namespace
 // flipSign:    Flips val if we're working with the negative of the orig LUT.
 // scale:       From LUT index units to outDepth units.
 // val:         The value to invert.
-// Return the result that would produce val if used 
+// Return the result that would produce val if used
 // in a forward linear interpolation in the LUT.
 float FindLutInv(const float * start,
                  const float   startOffset,
@@ -993,7 +1031,7 @@ float FindLutInv(const float * start,
     const float cv = std::min( std::max( val * flipSign, *start ), *end );
 
     // std::lower_bound()
-    // "Returns an iterator pointing to the first element in the range [first,last) 
+    // "Returns an iterator pointing to the first element in the range [first,last)
     // which does not compare less than val (but could be equal)."
     // (NB: This is correct using either end or end+1 since lower_bound will return a
     //  value one greater than the second argument if no values in the array are >= cv.)
@@ -1098,7 +1136,7 @@ float FindLutInvHalf(const float * start,
 }
 
 template<BitDepth inBD, BitDepth outBD>
-InvLut1DRenderer<inBD, outBD>::InvLut1DRenderer(ConstLut1DOpDataRcPtr & lut) 
+InvLut1DRenderer<inBD, outBD>::InvLut1DRenderer(ConstLut1DOpDataRcPtr & lut)
     :   OpCPU()
     ,   m_dim(0)
     ,   m_alphaScaling(0.0f)
@@ -1252,7 +1290,7 @@ void InvLut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, lon
 }
 
 template<BitDepth inBD, BitDepth outBD>
-InvLut1DRendererHueAdjust<inBD, outBD>::InvLut1DRendererHueAdjust(ConstLut1DOpDataRcPtr & lut) 
+InvLut1DRendererHueAdjust<inBD, outBD>::InvLut1DRendererHueAdjust(ConstLut1DOpDataRcPtr & lut)
     :  InvLut1DRenderer<inBD, outBD>(lut)
 {
     this->updateData(lut);
@@ -1318,7 +1356,7 @@ void InvLut1DRendererHueAdjust<inBD, outBD>::apply(const void * inImg, void * ou
 }
 
 template<BitDepth inBD, BitDepth outBD>
-InvLut1DRendererHalfCode<inBD, outBD>::InvLut1DRendererHalfCode(ConstLut1DOpDataRcPtr & lut) 
+InvLut1DRendererHalfCode<inBD, outBD>::InvLut1DRendererHalfCode(ConstLut1DOpDataRcPtr & lut)
     :  InvLut1DRenderer<inBD, outBD>(lut)
 {
     this->updateData(lut);
@@ -1441,14 +1479,14 @@ void InvLut1DRendererHalfCode<inBD, outBD>::apply(const void * inImg, void * out
         // If this proves to be a problem, could move the clamp here instead.
 
         const float redIn = in[0];
-        const float redOut 
-            = (redIsIncreasing == (redIn >= this->m_paramsR.bisectPoint)) 
+        const float redOut
+            = (redIsIncreasing == (redIn >= this->m_paramsR.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsR.lutStart,
                                  this->m_paramsR.startOffset,
                                  this->m_paramsR.lutEnd,
                                  this->m_paramsR.flipSign,
                                  this->m_scale,
-                                 redIn) 
+                                 redIn)
                 : FindLutInvHalf(this->m_paramsR.negLutStart,
                                  this->m_paramsR.negStartOffset,
                                  this->m_paramsR.negLutEnd,
@@ -1457,14 +1495,14 @@ void InvLut1DRendererHalfCode<inBD, outBD>::apply(const void * inImg, void * out
                                  redIn);
 
         const float grnIn = in[1];
-        const float grnOut 
-            = (grnIsIncreasing == (grnIn >= this->m_paramsG.bisectPoint)) 
+        const float grnOut
+            = (grnIsIncreasing == (grnIn >= this->m_paramsG.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsG.lutStart,
                                  this->m_paramsG.startOffset,
                                  this->m_paramsG.lutEnd,
                                  this->m_paramsG.flipSign,
                                  this->m_scale,
-                                 grnIn) 
+                                 grnIn)
                 : FindLutInvHalf(this->m_paramsG.negLutStart,
                                  this->m_paramsG.negStartOffset,
                                  this->m_paramsG.negLutEnd,
@@ -1473,8 +1511,8 @@ void InvLut1DRendererHalfCode<inBD, outBD>::apply(const void * inImg, void * out
                                  grnIn);
 
         const float bluIn = in[2];
-        const float bluOut 
-            = (bluIsIncreasing == (bluIn >= this->m_paramsB.bisectPoint)) 
+        const float bluOut
+            = (bluIsIncreasing == (bluIn >= this->m_paramsB.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsB.lutStart,
                                  this->m_paramsB.startOffset,
                                  this->m_paramsB.lutEnd,
@@ -1499,7 +1537,7 @@ void InvLut1DRendererHalfCode<inBD, outBD>::apply(const void * inImg, void * out
 }
 
 template<BitDepth inBD, BitDepth outBD>
-InvLut1DRendererHalfCodeHueAdjust<inBD, outBD>::InvLut1DRendererHalfCodeHueAdjust(ConstLut1DOpDataRcPtr & lut) 
+InvLut1DRendererHalfCodeHueAdjust<inBD, outBD>::InvLut1DRendererHalfCodeHueAdjust(ConstLut1DOpDataRcPtr & lut)
     :  InvLut1DRendererHalfCode<inBD, outBD>(lut)
 {
     this->updateData(lut);
@@ -1526,12 +1564,12 @@ void InvLut1DRendererHalfCodeHueAdjust<inBD, outBD>::apply(const void * inImg, v
         GamutMapUtils::Order3( RGB, min, mid, max);
 
         const float orig_chroma = RGB[max] - RGB[min];
-        const float hue_factor 
+        const float hue_factor
             = orig_chroma == 0.f ? 0.f
                                  : (RGB[mid] - RGB[min]) / orig_chroma;
 
-        const float redOut 
-            = (redIsIncreasing == (RGB[0] >= this->m_paramsR.bisectPoint)) 
+        const float redOut
+            = (redIsIncreasing == (RGB[0] >= this->m_paramsR.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsR.lutStart,
                                  this->m_paramsR.startOffset,
                                  this->m_paramsR.lutEnd,
@@ -1545,14 +1583,14 @@ void InvLut1DRendererHalfCodeHueAdjust<inBD, outBD>::apply(const void * inImg, v
                                  this->m_scale,
                                  RGB[0]);
 
-        const float grnOut 
-            = (grnIsIncreasing == (RGB[1] >= this->m_paramsG.bisectPoint)) 
+        const float grnOut
+            = (grnIsIncreasing == (RGB[1] >= this->m_paramsG.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsG.lutStart,
                                  this->m_paramsG.startOffset,
                                  this->m_paramsG.lutEnd,
                                  this->m_paramsG.flipSign,
                                  this->m_scale,
-                                 RGB[1]) 
+                                 RGB[1])
                 : FindLutInvHalf(this->m_paramsG.negLutStart,
                                  this->m_paramsG.negStartOffset,
                                  this->m_paramsG.negLutEnd,
@@ -1560,14 +1598,14 @@ void InvLut1DRendererHalfCodeHueAdjust<inBD, outBD>::apply(const void * inImg, v
                                  this->m_scale,
                                  RGB[1]);
 
-        const float bluOut 
-            = (bluIsIncreasing == (RGB[2] >= this->m_paramsB.bisectPoint)) 
+        const float bluOut
+            = (bluIsIncreasing == (RGB[2] >= this->m_paramsB.bisectPoint))
                 ? FindLutInvHalf(this->m_paramsB.lutStart,
                                  this->m_paramsB.startOffset,
                                  this->m_paramsB.lutEnd,
                                  this->m_paramsB.flipSign,
                                  this->m_scale,
-                                 RGB[2]) 
+                                 RGB[2])
                 : FindLutInvHalf(this->m_paramsB.negLutStart,
                                  this->m_paramsB.negStartOffset,
                                  this->m_paramsB.negLutEnd,
