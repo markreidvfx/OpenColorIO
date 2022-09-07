@@ -209,7 +209,7 @@ static inline rgbavec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 &ctx, 
 }
 
 template<BitDepth inBD, BitDepth outBD>
-inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg, void *outImg, int numPixels)
+inline void applyTetrahedralAVX2Func(const float *lut3d, int dim, const void *inImg, void *outImg, int numPixels)
 {
     typedef typename BitDepthInfo<inBD>::Type InType;
     typedef typename BitDepthInfo<outBD>::Type OutType;
@@ -235,7 +235,7 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
     for (int i = 0; i < pixel_count; i += 8 )
     {
-        avx2RGBALoad<inBD>(src, r, g, b, a);
+        AVX2RGBAPack<inBD>::Load(src, r, g, b, a);
 
         // scale and clamp values
         r = _mm256_mul_ps(r, scale);
@@ -252,7 +252,7 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
         c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        avx2RGBAStore<outBD>(dst, c0.r, c0.g, c0.b, c0.a);
+        AVX2RGBAPack<outBD>::Store(dst, c0.r, c0.g, c0.b, c0.a);
 
         src += 32;
         dst += 32;
@@ -274,7 +274,7 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
             src+=4;
         }
 
-        avx2RGBALoad<BIT_DEPTH_F32>(in_buf, r, g, b, a);
+        AVX2RGBAPack<inBD>::Load(in_buf, r, g, b, a);
 
         // scale and clamp values
         r = _mm256_mul_ps(r, scale);
@@ -291,7 +291,7 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
         c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        avx2RGBAStore<outBD>(out_buf, c0.r, c0.g, c0.b, c0.a);
+        AVX2RGBAPack<outBD>::Store(out_buf, c0.r, c0.g, c0.b, c0.a);
 
         // memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
         for (int i = 0; i < remainder*4; i+=4)
@@ -309,7 +309,7 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
 void applyTetrahedralAVX2(const float *lut3d, int dim, const float *src, float *dst, int total_pixel_count)
 {
-    _applyTetrahedralAVX2<BIT_DEPTH_F32, BIT_DEPTH_F32>(lut3d, dim, src, dst, total_pixel_count);
+    applyTetrahedralAVX2Func<BIT_DEPTH_F32, BIT_DEPTH_F32>(lut3d, dim, src, dst, total_pixel_count);
 }
 
 } // OCIO_NAMESPACE

@@ -279,12 +279,7 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut)
     #if OCIO_USE_AVX2
     if (CPUInfo::instance().hasAVX2())
     {
-
-        m_applyLutFunc = AVX2GetConvertFunc(inBD, outBD);
-
-        // if(m_applyLutFunc) {
-        //     std::cerr<< "found avx2 func\n";
-        // }
+        m_applyLutFunc = AVX2GetLut1DApplyFunc(inBD, outBD);
     }
     #endif
 }
@@ -301,12 +296,7 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut, B
     #if OCIO_USE_AVX2
     if (CPUInfo::instance().hasAVX2())
     {
-
-        m_applyLutFunc = AVX2GetConvertFunc(inBD, outBitDepth);
-
-        // if(m_applyLutFunc) {
-        //     std::cerr<< "found avx2 func\n";
-        // }
+        m_applyLutFunc = AVX2GetLut1DApplyFunc(inBD, outBitDepth);
     }
     #endif
 }

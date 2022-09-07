@@ -60,7 +60,7 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
     int remainder = numPixels - pixel_count;
 
     for (int i = 0; i < pixel_count; i += 8 ) {
-        avx2RGBALoad<inBD>(src, r, g, b, a);
+        AVX2RGBAPack<inBD>::Load(src, r, g, b, a);
 
         r = apply_lut_avx2(lutR, r, lut_scale, lut_max);
         g = apply_lut_avx2(lutG, g, lut_scale, lut_max);
@@ -69,7 +69,7 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
         if (inBD != outBD)
             a = _mm256_mul_ps(a, alpha_scale);
 
-        avx2RGBAStore<outBD>(dst, r, g, b, a);
+        AVX2RGBAPack<outBD>::Store(dst, r, g, b, a);
 
         src += 32;
         dst += 32;
@@ -90,7 +90,7 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
             src+=4;
         }
 
-        avx2RGBALoad<inBD>(in_buf, r, g, b, a);
+        AVX2RGBAPack<inBD>::Load(in_buf, r, g, b, a);
 
         r = apply_lut_avx2(lutR, r, lut_scale, lut_max);
         g = apply_lut_avx2(lutG, g, lut_scale, lut_max);
@@ -99,7 +99,7 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
         if (inBD != outBD)
             a = _mm256_mul_ps(a, alpha_scale);
 
-        avx2RGBAStore<outBD>(out_buf, r, g, b, a);
+        AVX2RGBAPack<outBD>::Store(out_buf, r, g, b, a);
         // memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
         for (int i = 0; i < remainder*4; i+=4)
         {
@@ -142,7 +142,7 @@ inline Lut1DOpCPUApplyFunc * GetConvertInBitDepth(BitDepth outBD)
 
 } // anonymous namespace
 
-Lut1DOpCPUApplyFunc * AVX2GetConvertFunc(BitDepth inBD, BitDepth outBD)
+Lut1DOpCPUApplyFunc * AVX2GetLut1DApplyFunc(BitDepth inBD, BitDepth outBD)
 {
 
     // Lut1DOp only uses interpolation for in float in formats

@@ -14,7 +14,7 @@ typedef void (Lut1DOpCPUApplyFunc)(const float *, const float *, const float *, 
 namespace OCIO_NAMESPACE
 {
 
-Lut1DOpCPUApplyFunc * AVX2GetConvertFunc(BitDepth inBD, BitDepth outBD);
+Lut1DOpCPUApplyFunc * AVX2GetLut1DApplyFunc(BitDepth inBD, BitDepth outBD);
 
 } // namespace OCIO_NAMESPACE
 
