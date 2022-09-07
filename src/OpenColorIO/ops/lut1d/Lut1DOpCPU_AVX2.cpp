@@ -15,8 +15,8 @@ namespace {
 
 static inline __m256 apply_lut_avx2(const float *lut, __m256 v, const __m256& scale, const __m256& lut_max)
 {
-    __m256 zero         = _mm256_setzero_ps();
-    __m256 one_f        = _mm256_set1_ps(1);
+    __m256 zero   = _mm256_setzero_ps();
+    __m256 one_f  = _mm256_set1_ps(1);
 
     __m256 scaled = _mm256_mul_ps(v, scale);
 
@@ -77,10 +77,19 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
 
      // handler leftovers pixels
     if (remainder) {
-        InType in_buf[32];
+        InType in_buf[32] = {};
         OutType out_buf[32];
 
-        memcpy(in_buf, src, remainder * 4 * sizeof(InType));
+        // memcpy(in_buf, src, remainder * 4 * sizeof(InType));
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            in_buf[i + 0] = src[0];
+            in_buf[i + 1] = src[1];
+            in_buf[i + 2] = src[2];
+            in_buf[i + 3] = src[3];
+            src+=4;
+        }
+
         avx2RGBALoad<inBD>(in_buf, r, g, b, a);
 
         r = apply_lut_avx2(lutR, r, lut_scale, lut_max);
@@ -91,7 +100,16 @@ static inline void linear1D(const float *lutR, const float *lutG,const float *lu
             a = _mm256_mul_ps(a, alpha_scale);
 
         avx2RGBAStore<outBD>(out_buf, r, g, b, a);
-        memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
+        // memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            dst[0] = out_buf[i + 0];
+            dst[1] = out_buf[i + 1];
+            dst[2] = out_buf[i + 2];
+            dst[3] = out_buf[i + 3];
+            dst+=4;
+        }
+
     }
 }
 

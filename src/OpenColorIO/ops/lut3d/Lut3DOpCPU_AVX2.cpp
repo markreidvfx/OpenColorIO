@@ -58,7 +58,7 @@ static inline __m256 load2_m128_avx2(const float *hi, const float *low)
     sample_b = _mm256_i32gather_ps(src+2, idx, 4)
 #endif
 
-static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, __m256 r, __m256 g, __m256 b)
+static inline rgbavec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 &ctx, __m256& r, __m256& g, __m256& b, __m256& a)
 {
     __m256 x0, x1, x2;
     __m256 cxxxa;
@@ -72,11 +72,11 @@ static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, _
 #endif
     __m256 sample_r, sample_g, sample_b;
 
-    rgbvec_avx2 result;
+    rgbavec_avx2 result;
 
-    __m256 lut_max  = ctx->lutmax;
-    __m256 lutsize  = ctx->lutsize;
-    __m256 lutsize2 = ctx->lutsize2;
+    __m256 lut_max  = ctx.lutmax;
+    __m256 lutsize  = ctx.lutsize;
+    __m256 lutsize2 = ctx.lutsize2;
 
     __m256 one_f    = _mm256_set1_ps(1.0f);
     __m256 four_f  = _mm256_set1_ps(4.0f);
@@ -172,7 +172,7 @@ static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, _
     __m256i cxxxb_idx = _mm256_cvttps_epi32(cxxxb);
     __m256i c111_idx  = _mm256_cvttps_epi32(c111);
 
-    gather_rgb_avx2(ctx->lut, c000_idx);
+    gather_rgb_avx2(ctx.lut, c000_idx);
 
     // (1-x0) * c000
     __m256 v = _mm256_sub_ps(one_f, x0);
@@ -180,7 +180,7 @@ static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, _
     result.g = _mm256_mul_ps(sample_g, v);
     result.b = _mm256_mul_ps(sample_b, v);
 
-    gather_rgb_avx2(ctx->lut, cxxxa_idx);
+    gather_rgb_avx2(ctx.lut, cxxxa_idx);
 
     // (x0-x1) * cxxxa
     v = _mm256_sub_ps(x0, x1);
@@ -188,7 +188,7 @@ static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, _
     result.g = _mm256_fmadd_ps(v, sample_g, result.g);
     result.b = _mm256_fmadd_ps(v, sample_b, result.b);
 
-    gather_rgb_avx2(ctx->lut, cxxxb_idx);
+    gather_rgb_avx2(ctx.lut, cxxxb_idx);
 
     // (x1-x2) * cxxxb
     v = _mm256_sub_ps(x1, x2);
@@ -196,12 +196,14 @@ static inline rgbvec_avx2 interp_tetrahedral_avx2(const Lut3DContextAVX2 *ctx, _
     result.g = _mm256_fmadd_ps(v, sample_g, result.g);
     result.b = _mm256_fmadd_ps(v, sample_b, result.b);
 
-    gather_rgb_avx2(ctx->lut, c111_idx);
+    gather_rgb_avx2(ctx.lut, c111_idx);
 
     // x2 * c111
     result.r = _mm256_fmadd_ps(x2, sample_r, result.r);
     result.g = _mm256_fmadd_ps(x2, sample_g, result.g);
     result.b = _mm256_fmadd_ps(x2, sample_b, result.b);
+
+    result.a = a;
 
     return result;
 }
@@ -214,9 +216,8 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
     const InType * src = (InType *)inImg;
     OutType * dst = (OutType *)outImg;
-
+    __m256 r,g,b,a;
     rgbavec_avx2 c0;
-    rgbvec_avx2  c1;
 
     Lut3DContextAVX2 ctx;
 
@@ -234,24 +235,24 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
 
     for (int i = 0; i < pixel_count; i += 8 )
     {
-        avx2RGBALoad<inBD>(src, c0.r, c0.g, c0.b, c0.a);
+        avx2RGBALoad<inBD>(src, r, g, b, a);
 
         // scale and clamp values
-        c0.r = _mm256_mul_ps(c0.r, scale);
-        c0.g = _mm256_mul_ps(c0.g, scale);
-        c0.b = _mm256_mul_ps(c0.b, scale);
+        r = _mm256_mul_ps(r, scale);
+        g = _mm256_mul_ps(g, scale);
+        b = _mm256_mul_ps(b, scale);
 
-        c0.r = _mm256_max_ps(c0.r, zero);
-        c0.g = _mm256_max_ps(c0.g, zero);
-        c0.b = _mm256_max_ps(c0.b, zero);
+        r = _mm256_max_ps(r, zero);
+        g = _mm256_max_ps(g, zero);
+        b = _mm256_max_ps(b, zero);
 
-        c0.r = _mm256_min_ps(c0.r, ctx.lutmax);
-        c0.g = _mm256_min_ps(c0.g, ctx.lutmax);
-        c0.b = _mm256_min_ps(c0.b, ctx.lutmax);
+        r = _mm256_min_ps(r, ctx.lutmax);
+        g = _mm256_min_ps(g, ctx.lutmax);
+        b = _mm256_min_ps(b, ctx.lutmax);
 
-        c1 = interp_tetrahedral_avx2(&ctx, c0.r, c0.g, c0.b);
+        c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        avx2RGBAStore<outBD>(dst, c1.r, c1.g, c1.b, c0.a);
+        avx2RGBAStore<outBD>(dst, c0.r, c0.g, c0.b, c0.a);
 
         src += 32;
         dst += 32;
@@ -260,29 +261,47 @@ inline void _applyTetrahedralAVX2(const float *lut3d, int dim, const void *inImg
      // handler leftovers pixels
     if (remainder)
     {
-        InType in_buf[32];
+        InType in_buf[32] = {};
         OutType out_buf[32];
-        memcpy(in_buf, src, remainder * 4 * sizeof(InType));
-        avx2RGBALoad<inBD>(src, c1.r, c1.g, c1.b, c0.a);
+
+        // memcpy(in_buf, src, remainder * 4 * sizeof(float));
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            in_buf[i + 0] = src[0];
+            in_buf[i + 1] = src[1];
+            in_buf[i + 2] = src[2];
+            in_buf[i + 3] = src[3];
+            src+=4;
+        }
+
+        avx2RGBALoad<BIT_DEPTH_F32>(in_buf, r, g, b, a);
 
         // scale and clamp values
-        c1.r = _mm256_mul_ps(c1.r, scale);
-        c1.g = _mm256_mul_ps(c1.g, scale);
-        c1.b = _mm256_mul_ps(c1.b, scale);
+        r = _mm256_mul_ps(r, scale);
+        g = _mm256_mul_ps(g, scale);
+        b = _mm256_mul_ps(b, scale);
 
-        c1.r = _mm256_max_ps(c1.r, zero);
-        c1.g = _mm256_max_ps(c1.g, zero);
-        c1.b = _mm256_max_ps(c1.b, zero);
+        r = _mm256_max_ps(r, zero);
+        g = _mm256_max_ps(g, zero);
+        b = _mm256_max_ps(b, zero);
 
-        c1.r = _mm256_min_ps(c1.r, ctx.lutmax);
-        c1.g = _mm256_min_ps(c1.g, ctx.lutmax);
-        c1.b = _mm256_min_ps(c1.b, ctx.lutmax);
+        r = _mm256_min_ps(r, ctx.lutmax);
+        g = _mm256_min_ps(g, ctx.lutmax);
+        b = _mm256_min_ps(b, ctx.lutmax);
 
-        c1 = interp_tetrahedral_avx2(&ctx, c1.r, c1.g, c1.b);
+        c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        avx2RGBAStore<outBD>(out_buf, c1.r, c1.g, c1.b, c0.a);
+        avx2RGBAStore<outBD>(out_buf, c0.r, c0.g, c0.b, c0.a);
 
-        memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
+        // memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            dst[0] = out_buf[i + 0];
+            dst[1] = out_buf[i + 1];
+            dst[2] = out_buf[i + 2];
+            dst[3] = out_buf[i + 3];
+            dst+=4;
+        }
     }
 }
 

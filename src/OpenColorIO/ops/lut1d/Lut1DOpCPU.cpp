@@ -623,7 +623,7 @@ void Lut1DRenderer<inBD, outBD>::apply(const void * inImg, void * outImg, long n
             out += 4;
         }
     }
-    else if (this->m_applyLutFunc && numPixels > 1)
+    else if (this->m_applyLutFunc)
     {
         const float * lutR = (const float *)this->m_tmpLutR;
         const float * lutG = (const float *)this->m_tmpLutG;

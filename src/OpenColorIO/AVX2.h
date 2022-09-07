@@ -47,7 +47,7 @@ inline __m256 avx2_clamp(__m256 value, const __m256& maxValue)
 }
 
 inline void avx2RGBATranspose_4x4_4x4(__m256 row0, __m256 row1, __m256 row2, __m256 row3,
-                                             __m256 &out_r, __m256 &out_g, __m256 &out_b, __m256 &out_a )
+                                      __m256 &out_r, __m256 &out_g, __m256 &out_b, __m256 &out_a )
 {
     // the rgba transpose result will look this
     //
@@ -73,7 +73,7 @@ inline void avx2RGBATranspose_4x4_4x4(__m256 row0, __m256 row1, __m256 row2, __m
 
 }
 
-// avx2RGBALoad functions
+// avx2RGBALoad functions, does not preform 0-1 normalization
 template <BitDepth BD>
 inline void avx2RGBALoadU16(const typename BitDepthInfo<BD>::Type *in, __m256& r, __m256& g, __m256& b, __m256& a)
 {
@@ -156,9 +156,9 @@ inline void avx2RGBALoad<BIT_DEPTH_F32>(const float *in, __m256& r, __m256& g, _
     a = _mm256_i32gather_ps(in + 3, rgba_idx, 4);
 }
 
-// avx2RGBAStore functions
+// avx2RGBAStore functions, does not scale values to depth, preform that before calling
 template <BitDepth BD>
-inline void avx2RGBAStoreU16(typename BitDepthInfo<BD>::Type *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStoreU16(typename BitDepthInfo<BD>::Type *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     __m256 rgba0, rgba1, rgba2, rgba3;
     __m128i lo, hi;
@@ -201,10 +201,10 @@ inline void avx2RGBAStoreU16(typename BitDepthInfo<BD>::Type *out, __m256& r, __
 }
 
 template <BitDepth BD>
-inline void avx2RGBAStore(typename BitDepthInfo<BD>::Type *out, __m256& r, __m256& g, __m256& b, __m256& a);
+inline void avx2RGBAStore(typename BitDepthInfo<BD>::Type *out, __m256 r, __m256 g, __m256 b, __m256 a);
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_UINT8>(uint8_t *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_UINT8>(uint8_t *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     __m256 rgba0, rgba1, rgba2, rgba3;
     const __m256 maxValue = _mm256_set1_ps(255.0f);
@@ -246,25 +246,25 @@ inline void avx2RGBAStore<BIT_DEPTH_UINT8>(uint8_t *out, __m256& r, __m256& g, _
 }
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_UINT10>(uint16_t *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_UINT10>(uint16_t *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     avx2RGBAStoreU16<BIT_DEPTH_UINT10>(out, r, g, b, a);
 }
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_UINT12>(uint16_t *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_UINT12>(uint16_t *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     avx2RGBAStoreU16<BIT_DEPTH_UINT12>(out, r, g, b, a);
 }
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_UINT16>(uint16_t *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_UINT16>(uint16_t *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     avx2RGBAStoreU16<BIT_DEPTH_UINT16>(out, r, g, b, a);
 }
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_F16>(half *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_F16>(half *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     __m256 rgba0, rgba1, rgba2, rgba3;
     __m256i rgba;
@@ -284,7 +284,7 @@ inline void avx2RGBAStore<BIT_DEPTH_F16>(half *out, __m256& r, __m256& g, __m256
 }
 
 template <>
-inline void avx2RGBAStore<BIT_DEPTH_F32>(float *out, __m256& r, __m256& g, __m256& b, __m256& a)
+inline void avx2RGBAStore<BIT_DEPTH_F32>(float *out, __m256 r, __m256 g, __m256 b, __m256 a)
 {
     __m256 rgba0, rgba1, rgba2, rgba3;
     avx2RGBATranspose_4x4_4x4(r, g, b, a, rgba0, rgba1, rgba2, rgba3);
