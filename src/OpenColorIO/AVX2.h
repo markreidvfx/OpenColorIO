@@ -5,7 +5,7 @@
 #ifndef INCLUDED_OCIO_AVX2_H
 #define INCLUDED_OCIO_AVX2_H
 
-
+#include "CPUInfo.h"
 #ifdef OCIO_USE_AVX2
 
 
