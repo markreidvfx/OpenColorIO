@@ -63,6 +63,8 @@ public:
 
     bool hasAVX512() const { return x86_check_flags(AVX512); }
 
+    bool hasF16C() const { return x86_check_flags(F16C); }
+
 private:
     unsigned int flags;
     int family;

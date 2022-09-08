@@ -9,4 +9,6 @@
 #cmakedefine01 OCIO_USE_AVX2
 #cmakedefine01 OCIO_USE_AVX512
 
+#cmakedefine01 OCIO_USE_F16C
+
 #cmakedefine01 OCIO_USE_NEON
