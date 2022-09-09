@@ -16,6 +16,7 @@
 #include "SSE.h"
 
 #include "CPUInfo.h"
+#include "Lut1DOpCPU_SSE2.h"
 #include "Lut1DOpCPU_AVX.h"
 #include "Lut1DOpCPU_AVX2.h"
 
@@ -277,6 +278,13 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut)
     static_assert(inBD!=BIT_DEPTH_UINT32 && inBD!=BIT_DEPTH_UINT14, "Unsupported bit depth.");
     update(lut);
 
+#if OCIO_USE_SSE2
+    if (CPUInfo::instance().hasSSE2())
+    {
+        m_applyLutFunc = SSE2GetLut1DApplyFunc(inBD, m_outBitDepth);
+    }
+#endif
+
 #if OCIO_USE_AVX
     if (CPUInfo::instance().hasAVX())
     {
@@ -300,6 +308,13 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut, B
 {
     static_assert(inBD!=BIT_DEPTH_UINT32 && inBD!=BIT_DEPTH_UINT14, "Unsupported bit depth.");
     update(lut);
+
+#if OCIO_USE_SSE2
+    if (CPUInfo::instance().hasSSE2())
+    {
+        m_applyLutFunc = SSE2GetLut1DApplyFunc(inBD, m_outBitDepth);
+    }
+#endif
 
 #if OCIO_USE_AVX
     if (CPUInfo::instance().hasAVX())
