@@ -227,6 +227,7 @@ set(TESTS
     Platform_tests.cpp
     Processor_tests.cpp
     SSE_tests.cpp
+    SSE2_tests.cpp
     AVX_tests.cpp
     AVX2_tests.cpp
     transforms/AllocationTransform_tests.cpp
@@ -277,6 +278,7 @@ if(OCIO_ARCH_X86)
     set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut3d/Lut3DOpCPU_AVX.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX_ARGS})
     set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut3d/Lut3DOpCPU_AVX2.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
     set_property(SOURCE "${CMAKE_SOURCE_DIR}/src/OpenColorIO/ops/lut1d/Lut1DOpCPU_AVX2.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
+    set_property(SOURCE "SSE2_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_SSE2_ARGS})
     set_property(SOURCE "AVX_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX_ARGS})
     set_property(SOURCE "AVX2_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
 endif()
