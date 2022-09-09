@@ -5,36 +5,24 @@
 
 #if OCIO_USE_SSE2
 
+#include "SSE2.h"
+
 #include <immintrin.h>
 
 namespace OCIO_NAMESPACE
 {
 namespace {
-// Macros for alignment declarations
-#define SSE2_SIMD_BYTES 16
-#if defined( _MSC_VER )
-#define SSE2_ALIGN(decl) __declspec(align(SSE2_SIMD_BYTES)) decl
-#elif ( __APPLE__ )
 
-#define SSE2_ALIGN(decl) decl
-#else
-#define SSE2_ALIGN(decl) decl __attribute__((aligned(SSE2_SIMD_BYTES)))
-#endif
-
-typedef struct {
+struct Lut3DContextSSE2 {
     const float *lut;
     __m128 lutmax;
     __m128 lutsize;
     __m128 lutsize2;
-} Lut3DContextSSE2;
+};
 
-typedef struct rgbvec_sse2 {
-    __m128 r, g, b;
-} rgbvec_sse2;
-
-typedef struct rgabvec_sse2 {
+struct rgbavec_sse2 {
     __m128 r, g, b, a;
-} m128_rgbavec;
+};
 
 #define gather_rgb_sse2(src, idx)             \
     _mm_store_si128((__m128i *)indices, idx); \
@@ -66,7 +54,7 @@ static inline __m128 fmadd_ps_sse2(__m128 a, __m128 b, __m128 c)
     return  _mm_add_ps(_mm_mul_ps(a, b), c);
 }
 
-static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, __m128 r, __m128 g, __m128 b)
+static inline rgbavec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 &ctx, __m128 r, __m128 g, __m128 b, __m128 a)
 {
     SSE2_ALIGN(uint32_t indices[4]);
 
@@ -79,11 +67,11 @@ static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, _
     __m128 row0, row1, row2, row3;
     __m128 sample_r, sample_g, sample_b;
 
-    rgbvec_sse2 result;
+    rgbavec_sse2 result;
 
-    __m128 lut_max  = ctx->lutmax;
-    __m128 lutsize  = ctx->lutsize;
-    __m128 lutsize2 = ctx->lutsize2;
+    __m128 lut_max  = ctx.lutmax;
+    __m128 lutsize  = ctx.lutsize;
+    __m128 lutsize2 = ctx.lutsize2;
 
     __m128 one_f   = _mm_set1_ps(1.0f);
     __m128 four_f  = _mm_set1_ps(4.0f);
@@ -179,7 +167,7 @@ static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, _
     __m128i cxxxb_idx = _mm_cvttps_epi32(cxxxb);
     __m128i c111_idx  = _mm_cvttps_epi32(c111);
 
-    gather_rgb_sse2(ctx->lut, c000_idx);
+    gather_rgb_sse2(ctx.lut, c000_idx);
 
     // (1-x0) * c000
     __m128 v = _mm_sub_ps(one_f, x0);
@@ -187,7 +175,7 @@ static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, _
     result.g = _mm_mul_ps(sample_g, v);
     result.b = _mm_mul_ps(sample_b, v);
 
-    gather_rgb_sse2(ctx->lut, cxxxa_idx);
+    gather_rgb_sse2(ctx.lut, cxxxa_idx);
 
     // (x0-x1) * cxxxa
     v = _mm_sub_ps(x0, x1);
@@ -195,7 +183,7 @@ static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, _
     result.g = fmadd_ps_sse2(v, sample_g, result.g);
     result.b = fmadd_ps_sse2(v, sample_b, result.b);
 
-    gather_rgb_sse2(ctx->lut, cxxxb_idx);
+    gather_rgb_sse2(ctx.lut, cxxxb_idx);
 
     // (x1-x2) * cxxxb
     v = _mm_sub_ps(x1, x2);
@@ -203,36 +191,27 @@ static inline rgbvec_sse2 interp_tetrahedral_sse2(const Lut3DContextSSE2 *ctx, _
     result.g = fmadd_ps_sse2(v, sample_g, result.g);
     result.b = fmadd_ps_sse2(v, sample_b, result.b);
 
-    gather_rgb_sse2(ctx->lut, c111_idx);
+    gather_rgb_sse2(ctx.lut, c111_idx);
 
     // x2 * c111
     result.r = fmadd_ps_sse2(x2, sample_r, result.r);
     result.g = fmadd_ps_sse2(x2, sample_g, result.g);
     result.b = fmadd_ps_sse2(x2, sample_b, result.b);
 
+    result.a = a;
+
     return result;
 }
 
-static inline m128_rgbavec rgba_transpose_4x4_sse2(__m128 row0, __m128 row1, __m128 row2, __m128 row3)
+template<BitDepth inBD, BitDepth outBD>
+static inline void applyTetrahedralSSE2Func(const float *lut3d, int dim, const float *src, float *dst, int total_pixel_count)
 {
-    m128_rgbavec result;
-    __m128 tmp0 = _mm_unpacklo_ps(row0, row1);
-    __m128 tmp2 = _mm_unpacklo_ps(row2, row3);
-    __m128 tmp1 = _mm_unpackhi_ps(row0, row1);
-    __m128 tmp3 = _mm_unpackhi_ps(row2, row3);
-    result.r    = _mm_movelh_ps(tmp0, tmp2);
-    result.g    = _mm_movehl_ps(tmp2, tmp0); // Note movhlps swaps b with a which is different than unpckhpd
-    result.b    = _mm_movelh_ps(tmp1, tmp3);
-    result.a    = _mm_movehl_ps(tmp3, tmp1);
-    return result;
-}
+    typedef typename BitDepthInfo<inBD>::Type InType;
+    typedef typename BitDepthInfo<outBD>::Type OutType;
 
-} // anonymous namespace
+    rgbavec_sse2 c;
 
-void applyTetrahedralSSE2(const float *lut3d, int dim, const float *src, float *dst, int total_pixel_count)
-{
-    m128_rgbavec c;
-    rgbvec_sse2 c2;
+    __m128 r, g, b, a;
 
     Lut3DContextSSE2 ctx;
 
@@ -251,24 +230,24 @@ void applyTetrahedralSSE2(const float *lut3d, int dim, const float *src, float *
     int remainder = total_pixel_count - pixel_count;
 
     for (int i = 0; i < pixel_count; i += 4 ) {
-        __m128 rgba0 = _mm_loadu_ps(src +  0);
-        __m128 rgba1 = _mm_loadu_ps(src +  4);
-        __m128 rgba2 = _mm_loadu_ps(src +  8);
-        __m128 rgba3 = _mm_loadu_ps(src + 12);
-        c = rgba_transpose_4x4_sse2(rgba0, rgba1, rgba2, rgba3);
+        SSE2RGBAPack<inBD>::Load(src, r, g, b, a);
 
-         // scale and clamp values
-        c.r = _mm_min_ps(ctx.lutmax, _mm_max_ps(zero, _mm_mul_ps(c.r, scale_r)));
-        c.g = _mm_min_ps(ctx.lutmax, _mm_max_ps(zero, _mm_mul_ps(c.g, scale_g)));
-        c.b = _mm_min_ps(ctx.lutmax, _mm_max_ps(zero, _mm_mul_ps(c.b, scale_b)));
+        // scale and clamp values
+        r = _mm_mul_ps(r, scale_r);
+        g = _mm_mul_ps(g, scale_g);
+        b = _mm_mul_ps(b, scale_b);
 
-        c2 = interp_tetrahedral_sse2(&ctx, c.r, c.g, c.b);
+        r = _mm_max_ps(r, zero);
+        g = _mm_max_ps(g, zero);
+        b = _mm_max_ps(b, zero);
 
-        c = rgba_transpose_4x4_sse2(c2.r, c2.g, c2.b, c.a);
-        _mm_storeu_ps(dst +  0, c.r);
-        _mm_storeu_ps(dst +  4, c.g);
-        _mm_storeu_ps(dst +  8, c.b);
-        _mm_storeu_ps(dst + 12, c.a);
+        r = _mm_min_ps(r, ctx.lutmax);
+        g = _mm_min_ps(g, ctx.lutmax);
+        b = _mm_min_ps(b, ctx.lutmax);
+
+        c = interp_tetrahedral_sse2(ctx, r, g, b, a);
+
+        SSE2RGBAPack<outBD>::Store(dst, c.r, c.g, c.b, c.a);
 
         src += 16;
         dst += 16;
@@ -276,50 +255,52 @@ void applyTetrahedralSSE2(const float *lut3d, int dim, const float *src, float *
 
     // handler leftovers pixels
     if (remainder) {
-        SSE2_ALIGN(float r[4]);
-        SSE2_ALIGN(float g[4]);
-        SSE2_ALIGN(float b[4]);
-        SSE2_ALIGN(float a[4]);
+        InType in_buf[16] = {};
+        OutType out_buf[16];
 
-        for (int i = 0; i < remainder; i++) {
-            r[i] = src[0];
-            g[i] = src[1];
-            b[i] = src[2];
-            a[i] = src[3];
-            src += 4;
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            in_buf[i + 0] = src[0];
+            in_buf[i + 1] = src[1];
+            in_buf[i + 2] = src[2];
+            in_buf[i + 3] = src[3];
+            src+=4;
         }
 
-        c.r = _mm_load_ps(r);
-        c.g = _mm_load_ps(g);
-        c.b = _mm_load_ps(b);
+        SSE2RGBAPack<inBD>::Load(in_buf, r, g, b, a);
 
         // scale and clamp values
-        c.r = _mm_mul_ps(c.r, scale_r);
-        c.g = _mm_mul_ps(c.g, scale_g);
-        c.b = _mm_mul_ps(c.b, scale_b);
+        r = _mm_mul_ps(r, scale_r);
+        g = _mm_mul_ps(g, scale_g);
+        b = _mm_mul_ps(b, scale_b);
 
-        c.r = _mm_max_ps(c.r, zero);
-        c.g = _mm_max_ps(c.g, zero);
-        c.b = _mm_max_ps(c.b, zero);
+        r = _mm_max_ps(r, zero);
+        g = _mm_max_ps(g, zero);
+        b = _mm_max_ps(b, zero);
 
-        c.r = _mm_min_ps(c.r, ctx.lutmax);
-        c.g = _mm_min_ps(c.g, ctx.lutmax);
-        c.b = _mm_min_ps(c.b, ctx.lutmax);
+        r = _mm_min_ps(r, ctx.lutmax);
+        g = _mm_min_ps(g, ctx.lutmax);
+        b = _mm_min_ps(b, ctx.lutmax);
 
-        c2 = interp_tetrahedral_sse2(&ctx, c.r, c.g, c.b);
+        c = interp_tetrahedral_sse2(ctx, r, g, b, a);
 
-        _mm_store_ps(r, c2.r);
-        _mm_store_ps(g, c2.g);
-        _mm_store_ps(b, c2.b);
+        SSE2RGBAPack<outBD>::Store(out_buf, c.r, c.g, c.b, c.a);
 
-        for (int i = 0; i < remainder; i++) {
-            dst[0] = r[i];
-            dst[1] = g[i];
-            dst[2] = b[i];
-            dst[3] = a[i];
-            dst += 4;
+        for (int i = 0; i < remainder*4; i+=4)
+        {
+            dst[0] = out_buf[i + 0];
+            dst[1] = out_buf[i + 1];
+            dst[2] = out_buf[i + 2];
+            dst[3] = out_buf[i + 3];
+            dst+=4;
         }
     }
+}
+} // anonymous namespace
+
+void applyTetrahedralSSE2(const float *lut3d, int dim, const float *src, float *dst, int total_pixel_count)
+{
+    applyTetrahedralSSE2Func<BIT_DEPTH_F32, BIT_DEPTH_F32>(lut3d, dim, src, dst, total_pixel_count);
 }
 
 } // OCIO_NAMESPACE
