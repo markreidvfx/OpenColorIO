@@ -21,10 +21,6 @@ struct Lut3DContextAVX2 {
     __m256 lutsize2;
 };
 
-struct rgbvec_avx2 {
-    __m256 r, g, b;
-};
-
 struct rgbavec_avx2 {
     __m256 r, g, b, a;
 };
@@ -217,7 +213,7 @@ inline void applyTetrahedralAVX2Func(const float *lut3d, int dim, const void *in
     const InType * src = (InType *)inImg;
     OutType * dst = (OutType *)outImg;
     __m256 r,g,b,a;
-    rgbavec_avx2 c0;
+    rgbavec_avx2 c;
 
     Lut3DContextAVX2 ctx;
 
@@ -250,9 +246,9 @@ inline void applyTetrahedralAVX2Func(const float *lut3d, int dim, const void *in
         g = _mm256_min_ps(g, ctx.lutmax);
         b = _mm256_min_ps(b, ctx.lutmax);
 
-        c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
+        c = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        AVX2RGBAPack<outBD>::Store(dst, c0.r, c0.g, c0.b, c0.a);
+        AVX2RGBAPack<outBD>::Store(dst, c.r, c.g, c.b, c.a);
 
         src += 32;
         dst += 32;
@@ -264,7 +260,6 @@ inline void applyTetrahedralAVX2Func(const float *lut3d, int dim, const void *in
         InType in_buf[32] = {};
         OutType out_buf[32];
 
-        // memcpy(in_buf, src, remainder * 4 * sizeof(float));
         for (int i = 0; i < remainder*4; i+=4)
         {
             in_buf[i + 0] = src[0];
@@ -289,11 +284,10 @@ inline void applyTetrahedralAVX2Func(const float *lut3d, int dim, const void *in
         g = _mm256_min_ps(g, ctx.lutmax);
         b = _mm256_min_ps(b, ctx.lutmax);
 
-        c0 = interp_tetrahedral_avx2(ctx, r, g, b, a);
+        c = interp_tetrahedral_avx2(ctx, r, g, b, a);
 
-        AVX2RGBAPack<outBD>::Store(out_buf, c0.r, c0.g, c0.b, c0.a);
+        AVX2RGBAPack<outBD>::Store(out_buf, c.r, c.g, c.b, c.a);
 
-        // memcpy(dst, out_buf, remainder * 4 * sizeof(OutType));
         for (int i = 0; i < remainder*4; i+=4)
         {
             dst[0] = out_buf[i + 0];

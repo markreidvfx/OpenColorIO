@@ -293,7 +293,7 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut)
 #endif
 
 #if OCIO_USE_AVX2
-    if (CPUInfo::instance().hasAVX2())
+    if (CPUInfo::instance().hasAVX2() && !CPUInfo::instance().AVX2SlowGather())
     {
         m_applyLutFunc = AVX2GetLut1DApplyFunc(inBD, outBD);
     }
@@ -317,14 +317,14 @@ BaseLut1DRenderer<inBD, outBD>::BaseLut1DRenderer(ConstLut1DOpDataRcPtr & lut, B
 #endif
 
 #if OCIO_USE_AVX
-    if (CPUInfo::instance().hasAVX())
+    if (CPUInfo::instance().hasAVX() && !CPUInfo::instance().AVXSlow())
     {
         m_applyLutFunc = AVXGetLut1DApplyFunc(inBD, m_outBitDepth);
     }
 #endif
 
 #if OCIO_USE_AVX2
-    if (CPUInfo::instance().hasAVX2())
+    if (CPUInfo::instance().hasAVX2() && !CPUInfo::instance().AVX2SlowGather())
     {
         m_applyLutFunc = AVX2GetLut1DApplyFunc(inBD, m_outBitDepth);
     }
