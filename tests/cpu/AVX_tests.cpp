@@ -18,7 +18,7 @@
 namespace OCIO = OCIO_NAMESPACE;
 
 #define AVX_CHECK() \
-    if (!OCIO::CPUInfo::instance().hasAVX()) return
+    if (!OCIO::CPUInfo::instance().hasAVX()) throw SkipException()
 
 #define HAS_F16C() \
     OCIO::CPUInfo::instance().hasF16C()
@@ -267,7 +267,7 @@ OCIO_ADD_TEST(AVX, packed_uint16_to_f32_test)
 OCIO_ADD_TEST(AVX, packed_f16_to_f32_test)
 {
     AVX_CHECK();
-    if(!HAS_F16C()) return;
+    if(!HAS_F16C()) throw SkipException();
 
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT16>::maxValue + 1;
     std::vector<half> inImage(maxValue);

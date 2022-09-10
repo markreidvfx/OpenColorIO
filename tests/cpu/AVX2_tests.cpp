@@ -18,7 +18,7 @@
 namespace OCIO = OCIO_NAMESPACE;
 
 #define AVX2_CHECK() \
-    if (!OCIO::CPUInfo::instance().hasAVX2()) return
+    if (!OCIO::CPUInfo::instance().hasAVX2()) throw SkipException()
 
 namespace
 {

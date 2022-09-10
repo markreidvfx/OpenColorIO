@@ -67,7 +67,30 @@ function(add_ocio_test NAME SOURCES PRIVATE_INCLUDES)
     set_target_properties(${TEST_BINARY} PROPERTIES
         COMPILE_FLAGS "${PLATFORM_COMPILE_FLAGS}")
 
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+    if(OCIO_ARCH_X86)
+        add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+        add_test(NAME ${TEST_NAME}_no_accel COMMAND ${TEST_BINARY} --no_accel)
+        if(${OCIO_USE_SSE2})
+            add_test(NAME ${TEST_NAME}_sse2 COMMAND ${TEST_BINARY} --sse2)
+            if(${OCIO_USE_F16C})
+                add_test(NAME ${TEST_NAME}_sse2+f16c COMMAND ${TEST_BINARY} --sse2 --f16c)
+            endif()
+        endif()
+
+        if(${OCIO_USE_AVX})
+            add_test(NAME ${TEST_NAME}_avx COMMAND ${TEST_BINARY} --avx)
+            if(${OCIO_USE_F16C})
+                add_test(NAME ${TEST_NAME}_avx+f16c COMMAND ${TEST_BINARY} --avx --f16c)
+            endif()
+        endif()
+
+        if(${OCIO_USE_AVX2})
+            add_test(NAME ${TEST_NAME}_avx2 COMMAND ${TEST_BINARY} --avx2)
+        endif()
+    else()
+        add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+    endif()
+
 endfunction(add_ocio_test)
 
 # Eventually we will factor out each test into it's own executable

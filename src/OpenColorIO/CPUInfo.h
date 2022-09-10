@@ -34,8 +34,13 @@ namespace OCIO_NAMESPACE
 #define x86_check_flags(cpuext) \
     (OCIO_USE_ ## cpuext && ((flags) & X86_CPU_FLAG_ ## cpuext))
 
-class CPUInfo {
-public:
+struct CPUInfo {
+    unsigned int flags;
+    int family;
+    int model;
+    char name[65];
+    char vendor[13];
+
     CPUInfo();
 
     static CPUInfo& instance();
@@ -65,12 +70,6 @@ public:
 
     bool hasF16C() const { return x86_check_flags(F16C); }
 
-private:
-    unsigned int flags;
-    int family;
-    int model;
-    char name[65];
-    char vendor[13];
 };
 
 #undef x86_check_flags
