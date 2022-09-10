@@ -67,7 +67,30 @@ function(add_ocio_test NAME SOURCES PRIVATE_INCLUDES)
     set_target_properties(${TEST_BINARY} PROPERTIES
         COMPILE_FLAGS "${PLATFORM_COMPILE_FLAGS}")
 
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+    if(OCIO_ARCH_X86)
+        add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+        add_test(NAME ${TEST_NAME}_no_accel COMMAND ${TEST_BINARY} --no_accel)
+        if(${OCIO_USE_SSE2})
+            add_test(NAME ${TEST_NAME}_sse2 COMMAND ${TEST_BINARY} --sse2)
+            if(${OCIO_USE_F16C})
+                add_test(NAME ${TEST_NAME}_sse2+f16c COMMAND ${TEST_BINARY} --sse2 --f16c)
+            endif()
+        endif()
+
+        if(${OCIO_USE_AVX})
+            add_test(NAME ${TEST_NAME}_avx COMMAND ${TEST_BINARY} --avx)
+            if(${OCIO_USE_F16C})
+                add_test(NAME ${TEST_NAME}_avx+f16c COMMAND ${TEST_BINARY} --avx --f16c)
+            endif()
+        endif()
+
+        if(${OCIO_USE_AVX2})
+            add_test(NAME ${TEST_NAME}_avx2 COMMAND ${TEST_BINARY} --avx2)
+        endif()
+    else()
+        add_test(NAME ${TEST_NAME} COMMAND ${TEST_BINARY})
+    endif()
+
 endfunction(add_ocio_test)
 
 # Eventually we will factor out each test into it's own executable
@@ -84,6 +107,7 @@ set(SOURCES
     fileformats/xmlutils/XMLReaderHelper.cpp
     fileformats/xmlutils/XMLWriterUtils.cpp
     BakingUtils.cpp
+    CPUInfo.cpp
     GPUProcessor.cpp
     GpuShaderDesc.cpp
     GpuShaderClassWrapper.cpp
@@ -222,6 +246,9 @@ set(TESTS
     Platform_tests.cpp
     Processor_tests.cpp
     SSE_tests.cpp
+    SSE2_tests.cpp
+    AVX_tests.cpp
+    AVX2_tests.cpp
     transforms/AllocationTransform_tests.cpp
     transforms/builtins/BuiltinTransformRegistry_tests.cpp
     transforms/BuiltinTransform_tests.cpp
@@ -264,5 +291,11 @@ endfunction(prepend)
 prepend(SOURCES "${CMAKE_SOURCE_DIR}/src/OpenColorIO/" ${SOURCES})
 
 list(APPEND SOURCES ${TESTS})
+
+if(OCIO_ARCH_X86)
+    set_property(SOURCE "SSE2_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_SSE2_ARGS})
+    set_property(SOURCE "AVX_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX_ARGS})
+    set_property(SOURCE "AVX2_tests.cpp" APPEND PROPERTY COMPILE_OPTIONS ${OCIO_AVX2_ARGS})
+endif()
 
 add_ocio_test(cpu "${SOURCES}" TRUE)

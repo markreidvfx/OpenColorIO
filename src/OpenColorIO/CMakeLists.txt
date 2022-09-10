@@ -18,6 +18,7 @@ set(SOURCES
     Config.cpp
     Context.cpp
     ContextVariableUtils.cpp
+    CPUInfo.cpp
     CPUProcessor.cpp
     Display.cpp
     DynamicProperty.cpp
@@ -185,6 +186,8 @@ if(NOT WIN32)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenColorIO.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 endif()
 
+configure_file(CPUInfoConfig.h.in CPUInfoConfig.h)
+
 add_library(OpenColorIO ${SOURCES})
 
 # Require at least a C++11 compatible compiler for consumer projects.
@@ -256,6 +259,7 @@ set(BUILD_INCLUDES
     ${HEADER_LOCATION}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ABI_HEADER_LOCATION}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 target_include_directories(OpenColorIO
