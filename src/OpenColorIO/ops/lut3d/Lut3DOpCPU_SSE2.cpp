@@ -7,7 +7,7 @@
 
 #include "SSE2.h"
 
-#include <immintrin.h>
+#include <emmintrin.h>
 
 namespace OCIO_NAMESPACE
 {

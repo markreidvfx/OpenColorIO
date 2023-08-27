@@ -8,7 +8,7 @@
 #include "CPUInfo.h"
 #ifdef OCIO_USE_SSE2
 
-#include <immintrin.h>
+#include <emmintrin.h>
 #include <stdio.h>
 
 #include <OpenColorIO/OpenColorIO.h>
