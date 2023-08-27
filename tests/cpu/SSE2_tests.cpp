@@ -23,6 +23,9 @@ namespace OCIO = OCIO_NAMESPACE;
 #define HAS_F16C() \
     OCIO::CPUInfo::instance().hasF16C()
 
+#define DEFINE_SIMD_TEST(name) \
+void sse2_test_##name()
+
 namespace
 {
 
@@ -159,7 +162,7 @@ void testConvert_InBitDepth(OCIO::BitDepth outBD)
 
 }
 
-OCIO_ADD_TEST(SSE2, packed_uint8_to_float_test)
+DEFINE_SIMD_TEST(packed_uint8_to_float_test)
 {
     SSE2_CHECK();
     std::vector<uint8_t> inImage(256);
@@ -188,7 +191,7 @@ OCIO_ADD_TEST(SSE2, packed_uint8_to_float_test)
 }
 
 
-OCIO_ADD_TEST(SSE2, packed_uint10_to_f32_test)
+DEFINE_SIMD_TEST(packed_uint10_to_f32_test)
 {
     SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT10>::maxValue + 1;
@@ -215,7 +218,7 @@ OCIO_ADD_TEST(SSE2, packed_uint10_to_f32_test)
     }
 }
 
-OCIO_ADD_TEST(SSE2, packed_uint12_to_f32_test)
+DEFINE_SIMD_TEST(packed_uint12_to_f32_test)
 {
     SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT12>::maxValue + 1;
@@ -242,7 +245,7 @@ OCIO_ADD_TEST(SSE2, packed_uint12_to_f32_test)
     }
 }
 
-OCIO_ADD_TEST(SSE2, packed_uint16_to_f32_test)
+DEFINE_SIMD_TEST(packed_uint16_to_f32_test)
 {
     SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT16>::maxValue + 1;
@@ -271,7 +274,7 @@ OCIO_ADD_TEST(SSE2, packed_uint16_to_f32_test)
 
 #if OCIO_USE_F16C
 
-OCIO_ADD_TEST(SSE2, packed_f16_to_f32_test)
+DEFINE_SIMD_TEST(packed_f16_to_f32_test)
 {
     SSE2_CHECK();
     if(!HAS_F16C()) throw SkipException();
@@ -304,7 +307,7 @@ OCIO_ADD_TEST(SSE2, packed_f16_to_f32_test)
 #endif
 
 
-OCIO_ADD_TEST(SSE2, packed_nan_inf_test)
+DEFINE_SIMD_TEST(packed_nan_inf_test)
 {
     SSE2_CHECK();
     const float qnan = std::numeric_limits<float>::quiet_NaN();
@@ -432,7 +435,7 @@ OCIO_ADD_TEST(SSE2, packed_nan_inf_test)
 
 }
 
-OCIO_ADD_TEST(SSE2, packed_all_test)
+DEFINE_SIMD_TEST(packed_all_test)
 {
     SSE2_CHECK();
     const std::vector<  OCIO::BitDepth> formats = {
