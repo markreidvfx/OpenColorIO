@@ -132,21 +132,21 @@ void testConvert_InBitDepth(OCIO::BitDepth outBD)
     switch(outBD)
     {
         case OCIO::BIT_DEPTH_UINT8:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT8>(); return;
+            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT8>();
         case OCIO::BIT_DEPTH_UINT10:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT10>(); return;
+            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT10>();
         case OCIO::BIT_DEPTH_UINT12:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT12>(); return;
+            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT12>();
         case OCIO::BIT_DEPTH_UINT16:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT16>(); return;
+            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT16>();
         case OCIO::BIT_DEPTH_F16:
 #if OCIO_USE_F16C
             if (HAS_F16C())
-                return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F16>(); return;
+                return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F16>();
 #endif
             break;
         case OCIO::BIT_DEPTH_F32:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F32>(); return;
+            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F32>();
 
         case OCIO::BIT_DEPTH_UINT14:
         case OCIO::BIT_DEPTH_UINT32:
