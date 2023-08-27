@@ -134,7 +134,11 @@ void testConvert_InBitDepth(OCIO::BitDepth outBD)
         case OCIO::BIT_DEPTH_UINT16:
             return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_UINT16>(); return;
         case OCIO::BIT_DEPTH_F16:
-            return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F16>(); return;
+#if OCIO_USE_F16C
+            if (HAS_F16C())
+                return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F16>(); return;
+#endif
+            break;
         case OCIO::BIT_DEPTH_F32:
             return testConvert_OutBitDepth<inBD, OCIO::BIT_DEPTH_F32>(); return;
 
@@ -255,6 +259,8 @@ OCIO_ADD_TEST(AVX2, packed_uint16_to_f32_test)
     }
 }
 
+#if OCIO_USE_F16C
+
 OCIO_ADD_TEST(AVX2, packed_f16_to_f32_test)
 {
     AVX2_CHECK();
@@ -283,6 +289,7 @@ OCIO_ADD_TEST(AVX2, packed_f16_to_f32_test)
     }
 }
 
+#endif
 
 OCIO_ADD_TEST(AVX2, packed_nan_inf_test)
 {
@@ -305,15 +312,21 @@ OCIO_ADD_TEST(AVX2, packed_nan_inf_test)
                               100000.0f, 200000.0f,     -10.0f,  -2000.0f,
                                65535.0f,  65537.0f,  -65536.0f, -65537.0f };
 
-    OCIO::AVX2RGBAPack<OCIO::BIT_DEPTH_F32>::Load(&pixels[0], r, g, b, a);
-    OCIO::AVX2RGBAPack<OCIO::BIT_DEPTH_F16>::Store(&outImageHalf[0], r, g, b, a);
-
-    for (unsigned i = 0; i < outImageHalf.size(); i++)
+#if OCIO_USE_F16C
+    if(HAS_F16C())
     {
-        OCIO_CHECK_ASSERT_MESSAGE(!OCIO::FloatsDiffer((half)pixels[i], (float)outImageHalf[i], 0, false),
-                                  GetErrorMessage((half)pixels[i], (float)outImageHalf[i],
-                                                  OCIO::BIT_DEPTH_F32, OCIO::BIT_DEPTH_F16));
+        OCIO::AVX2RGBAPack<OCIO::BIT_DEPTH_F32>::Load(&pixels[0], r, g, b, a);
+        OCIO::AVX2RGBAPack<OCIO::BIT_DEPTH_F16>::Store(&outImageHalf[0], r, g, b, a);
+
+        for (unsigned i = 0; i < outImageHalf.size(); i++)
+        {
+            OCIO_CHECK_ASSERT_MESSAGE(!OCIO::FloatsDiffer((half)pixels[i], (float)outImageHalf[i], 0, false),
+                                    GetErrorMessage((half)pixels[i], (float)outImageHalf[i],
+                                                    OCIO::BIT_DEPTH_F32, OCIO::BIT_DEPTH_F16));
+        }
     }
+
+#endif
 
     const uint8_t resultU8[32] = {   0,   0,   0,   0,
                                    255,   0,   3,   0,
@@ -425,7 +438,10 @@ OCIO_ADD_TEST(AVX2, packed_all_test)
                 testConvert_InBitDepth<OCIO::BIT_DEPTH_UINT16>(outBD);
                 break;
             case OCIO::BIT_DEPTH_F16:
-                testConvert_InBitDepth<OCIO::BIT_DEPTH_F16>(outBD);
+#if OCIO_USE_F16C
+                if(HAS_F16C())
+                    testConvert_InBitDepth<OCIO::BIT_DEPTH_F16>(outBD);
+#endif
                 break;
             case OCIO::BIT_DEPTH_F32:
                 testConvert_InBitDepth<OCIO::BIT_DEPTH_F32>(outBD);
