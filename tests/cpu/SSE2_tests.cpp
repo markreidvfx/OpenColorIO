@@ -17,9 +17,6 @@
 
 namespace OCIO = OCIO_NAMESPACE;
 
-#define SSE2_CHECK() \
-    if (!OCIO::CPUInfo::instance().hasSSE2()) throw SkipException()
-
 #define HAS_F16C() \
     OCIO::CPUInfo::instance().hasF16C()
 
@@ -164,7 +161,6 @@ void testConvert_InBitDepth(OCIO::BitDepth outBD)
 
 DEFINE_SIMD_TEST(packed_uint8_to_float_test)
 {
-    SSE2_CHECK();
     std::vector<uint8_t> inImage(256);
     std::vector<float> outImage(256);
 
@@ -193,7 +189,6 @@ DEFINE_SIMD_TEST(packed_uint8_to_float_test)
 
 DEFINE_SIMD_TEST(packed_uint10_to_f32_test)
 {
-    SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT10>::maxValue + 1;
     std::vector<uint16_t> inImage(maxValue);
     std::vector<float> outImage(maxValue);
@@ -220,7 +215,6 @@ DEFINE_SIMD_TEST(packed_uint10_to_f32_test)
 
 DEFINE_SIMD_TEST(packed_uint12_to_f32_test)
 {
-    SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT12>::maxValue + 1;
     std::vector<uint16_t> inImage(maxValue);
     std::vector<float> outImage(maxValue);
@@ -247,7 +241,6 @@ DEFINE_SIMD_TEST(packed_uint12_to_f32_test)
 
 DEFINE_SIMD_TEST(packed_uint16_to_f32_test)
 {
-    SSE2_CHECK();
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT16>::maxValue + 1;
     std::vector<uint16_t> inImage(maxValue);
     std::vector<float> outImage(maxValue);
@@ -276,7 +269,6 @@ DEFINE_SIMD_TEST(packed_uint16_to_f32_test)
 
 DEFINE_SIMD_TEST(packed_f16_to_f32_test)
 {
-    SSE2_CHECK();
     if(!HAS_F16C()) throw SkipException();
 
     size_t maxValue = OCIO::BitDepthInfo<OCIO::BIT_DEPTH_UINT16>::maxValue + 1;
@@ -309,7 +301,6 @@ DEFINE_SIMD_TEST(packed_f16_to_f32_test)
 
 DEFINE_SIMD_TEST(packed_nan_inf_test)
 {
-    SSE2_CHECK();
     const float qnan = std::numeric_limits<float>::quiet_NaN();
     const float inf = std::numeric_limits<float>::infinity();
     const float maxf = std::numeric_limits<float>::max();
@@ -437,7 +428,6 @@ DEFINE_SIMD_TEST(packed_nan_inf_test)
 
 DEFINE_SIMD_TEST(packed_all_test)
 {
-    SSE2_CHECK();
     const std::vector<  OCIO::BitDepth> formats = {
                                                    OCIO::BIT_DEPTH_UINT8,
                                                    OCIO::BIT_DEPTH_UINT10,
